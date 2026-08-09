@@ -8,6 +8,6 @@ Moving beyond basic collaborative filtering, this two-tower neural network lever
 **Data Source**
 
 ● Primary Source: H&M Personalized Fashion Recommendations (via Kaggle).
-● Characteristics: Massive dataset including user purchase histories, detailed article
-metadata (color, garment type), and user demographics over a multi-year period.
+
+● Characteristics: Massive dataset including user purchase histories, detailed article metadata (color, garment type), and user demographics over a multi-year period.
 
