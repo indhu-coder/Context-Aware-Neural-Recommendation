@@ -12,7 +12,8 @@ Moving beyond basic collaborative filtering, this two-tower neural network lever
 ● Characteristics: Massive dataset including user purchase histories, detailed article metadata (color, garment type), and user demographics over a multi-year period.
 
 Downloading the dataset through kaggle API and reading the dataset through pyspark.
-    # import os
+    
+    #import os
     # import kagglehub
     
     # # 1. Log in with your Kaggle credentials
