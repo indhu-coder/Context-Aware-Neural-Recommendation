@@ -3,19 +3,15 @@
           # import os
           
           # import sys
-          
-          # # 1. TELL PYSPARK EXACTLY WHERE TO FIND YOUR CLEAN JAVA 11 INSTALLATION
-          
-          
-          # # Update this path to match your actual installation folder
+           
+          # # Updation with installation folder
           # os.environ["JAVA_HOME"] = r"C:\\java\\OpenJDK17U-jdk_x64_windows_hotspot_17.0.20_8\\jdk-17.0.20+8"
           
           # # Add the bin folder to the system PATH environment variable
           # os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["PATH"]
-          #  # <-- Change this to match your actual install folder path
           
           # # 2. FORCE PYSPARK TO USE THE VIRTUAL ENVIRONMENT'S INTERPRETER
-          # # This matches the 'recomm_env' execution framework you are using
+       
           # os.environ["PYSPARK_PYTHON"] = sys.executable
           # os.environ["PYSPARK_DRIVER_PYTHON"] = sys.executable
           
@@ -24,7 +20,7 @@
           
           
           
-          # # 1. Define the exact path to your dataset on the D drive
+          # # 1. Define the exact path to the dataset on the D drive
           # DATA_DIR = r"D:\\Recommendation_system\\data"
           
           # def init_spark():
