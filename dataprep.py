@@ -8,7 +8,7 @@ import sys
 
 
 # Update this path to match your actual installation folder
-os.environ["JAVA_HOME"] = r"C:\\java\\OpenJDK17U-jdk_x64_windows_hotspot_17.0.20_8\\jdk-17.0.20+8"
+os.environ["JAVA_HOME"] = r"C:\\java\\jdk-17"
 
 # Add the bin folder to the system PATH environment variable
 os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["PATH"]
@@ -50,21 +50,21 @@ def load_data_with_pyspark(spark):
 
 
     # 3. Print Row Counts (PySpark computes this lazily/efficiently)
-    # print("\n--- Spark DataFrame Statistics ---")
-    # print(f"Articles total rows:     {articles_df.count():,}")
-    # print(f"Customers total rows:    {customers_df.count():,}")
-    # print(f"Transactions total rows: {transactions_df.count():,}")
+    print("\n--- Spark DataFrame Statistics ---")
+    print(f"Articles total rows:     {articles_df.count():,}")
+    print(f"Customers total rows:    {customers_df.count():,}")
+    print(f"Transactions total rows: {transactions_df.count():,}")
     
     # 4. Show Schemas to verify context data types
     # print("\n--- Transactions Data Schema ---")
-    # transactions_df.printSchema()
-    # articles_df.printSchema() 
-    # customers_df.printSchema()
+    transactions_df.printSchema()
+    articles_df.printSchema() 
+    customers_df.printSchema()
        # 5. Display a sample of the transactions dataframe
     # print("\n--- Previewing first 5 rows of all csv files ---")
-    # transactions_df.show(5)
-    # customers_df.show(5)
-    # articles_df.show(5)
+    transactions_df.show(5)
+    customers_df.show(5)
+    articles_df.show(5)
     
     return articles_df, customers_df, transactions_df
 
@@ -76,14 +76,6 @@ if __name__ == "__main__":
     articles, customers, transactions = load_data_with_pyspark(spark_session)
 
 
-
-# null_counts_txn = transactions.select([sum(col(c).isNull().cast("int")).alias(c) for c in transactions.columns])
-# null_counts_txn.show()
-# null_counts_articles = articles.select([sum(col(c).isNull().cast("int")).alias(c) for c in articles.columns])
-# null_counts_articles.show()
-# null_counts_customers = customers.select([sum(col(c).isNull().cast("int")).alias(c) for c in customers.columns])
-# null_counts_customers.show()
-
 #Filling null values in detail description column in article dataframe with "No Description Available"
 articles = articles.fillna({"detail_desc": "No Description Available"})
 #Dropping duplicates in the articles dataframe
@@ -91,8 +83,14 @@ cleaned_df_articles = articles.distinct()
 print("✅ Data Cleaning Completed for Articles DataFrame")
 print(f"✅ Cleaned Articles DataFrame has {cleaned_df_articles.count():,} rows and {len(cleaned_df_articles.columns)} columns.")
 
-null_counts_articles = articles.select([sum(col(c).isNull().cast("int")).alias(c) for c in articles.columns])
-null_counts_articles.show()
+null_counts_articles = cleaned_df_articles.select(
+    [
+        sum(col(c).isNull().cast("int")).alias(c)
+        for c in cleaned_df_articles.columns
+    ]
+)
+null_counts_articles.show(5)
+
 
 #Dropping duplicates in the transactions dataframe
 duplicate_transactions = (
@@ -106,17 +104,37 @@ duplicate_transactions = (
     .filter("count > 1")
 )
 
-# print(duplicate_transactions.count())
+#processing date  column in transactions dataframe
+from pyspark.sql.functions import (
+    year, month, dayofmonth,
+    dayofweek, weekofyear, quarter
+)
+
+transactions = (
+    transactions
+    .withColumn("year", year("t_dat"))
+    .withColumn("month", month("t_dat"))
+    .withColumn("day", dayofmonth("t_dat"))
+    .withColumn("day_of_week", dayofweek("t_dat"))
+    .withColumn("week_of_year", weekofyear("t_dat"))
+    .withColumn("quarter", quarter("t_dat"))
+)
+
+#Cleaned transactions dataframe by dropping duplicates.
 cleaned_df_transactions = transactions.dropDuplicates(
     ["customer_id", "article_id", "t_dat"]
 )
-# print(cleaned_df_transactions.count())
-# cleaned_df_transactions.groupBy("sales_channel_id").count().show()
-transactions.select(
-    min("price").alias("min_price"),
-    max("price").alias("max_price"),
-    avg("price").alias("avg_price")
-).show()
+
+
+null_counts_transactions = cleaned_df_transactions.select(
+    [
+        sum(col(c).isNull().cast("int")).alias(c)
+        for c in cleaned_df_transactions.columns
+    ]
+)
+print(f"✅ Cleaned Transactions DataFrame has {cleaned_df_transactions.count():,} rows and {len(cleaned_df_transactions.columns)} columns.")
+null_counts_transactions.show()
+
 # Filling null values in Active column and FN column based on fashion_news_frequency
 customers = customers.withColumn(
     "Active",
@@ -126,7 +144,6 @@ customers = customers.withColumn(
     ).otherwise(0.0)
 )
 
-
 customers = customers.withColumn(
     "FN",
     when(
@@ -135,9 +152,6 @@ customers = customers.withColumn(
         1.0
     ).otherwise(0.0))
 customers.show(5)
-
-#Checking the value counts in the fashion_news_frequency column
-
 
 #fILIING NULL,nONE VALUES IN THE fashion_news_frequency COLUMN AS "None" on the whole dataset
 customers = customers.withColumn(
@@ -155,36 +169,17 @@ customers=customers.withColumn(
         col("club_member_status").isNull(),
         "Unknown"
     ).otherwise(col("club_member_status")))
-# Checking and Filling  null values in the age column as -1 on the whole dataset
-customers.select(
-    sum(col("age").isNull().cast("int")).alias("age_nulls")
-).show()
-total = customers.count()
 
-customers.select(
-    (sum(col("age").isNull().cast("int")) / total * 100)
-    .alias("age_missing_percentage")
-).show()
 median_age = customers.approxQuantile(
     "age",
     [0.5],
     0.01
 )[0]
 
-print(median_age)
+# print(median_age)
 customers = customers.fillna(
     {"age": median_age})
-customers = customers.withColumn(
-    "age_group",
-    when(col("age") < 25, "Young")
-    .when(col("age") < 40, "Adult")
-    .when(col("age") < 60, "Middle_Aged")
-    .otherwise("Senior"))
-customers=customers.approxQuantile("age",[0.0,0.5,1.0],0.01)
-min_age = customers[0]
-max_age = customers[2]
-median_age = customers[1]
-print(f"Min Age: {min_age}, Median Age: {median_age}, Max Age: {max_age}")
+
 
 # Dropping duplicates in the customers dataframe
 cleaned_df_customers = customers.distinct()
@@ -198,14 +193,36 @@ null_counts_customers = cleaned_df_customers.select(
         for c in cleaned_df_customers.columns
     ]
 )
+print(f"✅ Cleaned Customers DataFrame has {cleaned_df_customers.count():,} rows and {len(cleaned_df_customers.columns)} columns.")
 
 null_counts_customers.show()
-customers.groupBy("fashion_news_frequency").count().show()
-customers.groupBy("Active").count().show()
-customers.groupBy("FN").count().show()
-customers.groupBy("club_member_status").count().show()
-customers.groupBy("age").count().show()
 
+
+# ==============================
+# SAVE PROCESSED DATA AS PARQUET
+# ==============================
+
+PARQUET_DIR = r"D:\\Recommendation_system\\Context-Aware-Neural-Recommendation\\data\\parquet"
+
+os.makedirs(PARQUET_DIR, exist_ok=True)
+
+print("💾 Saving DataFrames as Parquet...")
+
+articles.write \
+    .mode("overwrite") \
+    .parquet(os.path.join(PARQUET_DIR, "articles"))
+
+customers.write \
+    .mode("overwrite") \
+    .parquet(os.path.join(PARQUET_DIR, "customers"))
+
+transactions.write \
+    .mode("overwrite") \
+    .parquet(os.path.join(PARQUET_DIR, "transactions"))
+
+print("✅ Articles saved")
+print("✅ Customers saved")
+print("✅ Transactions saved")
 
 spark_session.stop()
 
